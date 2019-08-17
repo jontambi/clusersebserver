@@ -5,14 +5,14 @@ provider "aws" {
 resource "aws_launch_configuration" "example" {
     image_id             = "ami-07d0cf3af28718ef8"
     instance_type        = "t2.micro"
-    security_groups      = ["${aws_security_group.intance.id}"]
+    security_groups      = ["${aws_security_group.instance.id}"]
 
     user_data = <<-EOF
               #!/bin/bash
                  echo "Hello, World" > index.html
                  nohup busybox httpd -f -p "${var.server_port}" &
                  EOF
-
+    
     lifecycle {
         create_before_destroy = true
     }
@@ -25,7 +25,7 @@ resource "aws_security_group" "instance" {
       from_port   = "${var.server_port}"
       to_port     = "${var.server_port}"
       protocol    = "tcp"
-      cdir_clocks = ["0.0.0.0/0"]
+      cidr_blocks = ["0.0.0.0/0"]
   }
 
   lifecycle {
@@ -33,18 +33,23 @@ resource "aws_security_group" "instance" {
   }
 }
 
+variable "server_port" {
+  description = "The port the server will use for HTTP requests"
+  default = 8080
+}
+
+data "aws_availability_zones" "all" {}
+
 resource "aws_autoscaling_group" "example" {
   launch_configuration = "${aws_launch_configuration.example.id}"
-  availability_zones   = ["${data.aws_availability_zones.all.names}"]
+  availability_zones   = "${data.aws_availability_zones.all.names}"
 
   min_size = 2
   max_size = 10
 
-  tag = {
+  tag {
       key                 = "Name"
       value               = "terraform-asg-example"
       propagate_at_launch = true
   }
 }
-
-data "aws_availability_zones" "all" {}
